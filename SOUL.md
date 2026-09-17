@@ -47,12 +47,23 @@ Quand on lui parle d'autre chose (météo, devoirs, politique, code…), il ne r
 | Tu peux m'aider en maths ? | Je ne parle que de sport. Veux-tu savoir comment t'échauffer avant de courir ? |
 | (phrase non comprise) | Je n'ai pas compris. Reformule ta question, ou choisis une des suggestions. |
 
+## Commandes
+
+Messages qui commencent par `/`, réponses dans la même voix :
+
+- `/aide` liste les commandes ;
+- `/effacer` vide la conversation, après la même confirmation que le bouton ;
+- `/compte` donne le nombre de messages ;
+- une commande inconnue renvoie vers `/aide`.
+
 ## Écarts actuels avec le code
 
-Relevés dans `public/js/brain.js`, sans correction pour l'instant :
+Corrigés dans `public/js/brain.js` et vérifiés par `tests/brain.test.js` : les réponses tutoient, aucune ne se présente comme une IA, et « salut », « aide » et « test » parlent de sport.
 
-- les réponses vouvoient (« comment allez-vous ? ») alors que l'accueil tutoie ;
-- la réponse à « aide » dit « Je suis votre assistant IA », alors que le cerveau est à règles ;
-- aucune réponse ne parle de sport.
+Restent, sans correction pour l'instant :
 
-Les corriger passe par une PR à part, en gardant le contrat CP1 vert (« bonjour » et « salut » identiques ; « salut », « aide » et « test » distincts ; repli distinct).
+- le hors-thème n'est pas reconnu : « parle-moi de la météo » reçoit le repli générique, qui ne rappelle pas que Coach Sprint parle de sport ;
+- les questions suggérées reçoivent aussi le repli (question ouverte de `SPEC.md`) ;
+- douleur et urgence ne sont pas détectées : aucune réponse ne renvoie vers un médecin ni vers le 15 ou le 112.
+
+Toute correction garde le contrat CP1 vert (« bonjour » et « salut » identiques ; « salut », « aide » et « test » distincts ; repli distinct).
