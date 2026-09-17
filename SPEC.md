@@ -54,3 +54,62 @@ Valeurs retenues :
 ## Questions ouvertes
 
 - Le cerveau doit-il donner une réponse propre à chacune des trois suggestions, au lieu du repli ? Non décidé : hors de cette PR tant que ce n'est pas tranché.
+
+---
+
+# SPEC.md — CP3 : la vraie IA en prod
+
+## Objectif
+
+Coach Sprint répond avec une vraie IA, dans son thème, en prod. La clé ne quitte jamais le serveur. Les tests tournent sans clé. Si l'IA ne répond pas, l'assistant répond quand même avec ses règles de J1, et il le dit.
+
+Fournisseur retenu : **Mistral**, via son API compatible OpenAI (`POST <adresse>/chat/completions`). Le code ne connaît que trois variables d'environnement, jamais un fournisseur en dur : changer de passerelle ne demande aucune modification de code.
+
+| Variable | Valeur en prod | Où |
+|---|---|---|
+| `CAPWEB_IA_URL` | `https://api.mistral.ai/v1` | Vercel, *Preview* et *Production* |
+| `CAPWEB_IA_CLE` | la clé « app » | Vercel, *Preview* et *Production* |
+| `CAPWEB_IA_MODELE` | `mistral-small-latest` (défaut du code si absente) | Vercel, *Preview* et *Production* |
+
+Aucune de ces variables n'existe en local ni en CI : les tests y sont donc toujours en mode dégradé, ce qui est précisément le comportement à garantir.
+
+## Ce que l'assistant accepte, refuse et ne révèle jamais
+
+- **Accepte** : échauffement et retour au calme, fréquence et progressivité des séances pour débuter (course, marche, vélo, renforcement au poids du corps), récupération (sommeil, hydratation, repos), motivation et régularité.
+- **Refuse poliment** : tout le hors-thème. Il ne répond pas sur le fond, rappelle en une phrase qu'il parle de sport, et propose une question.
+- **Ne fait jamais** : diagnostic ou traitement, conseil en cas de douleur autre que « arrête et consulte », dopage, régime, calories, objectif de poids, jugement sur le corps, demande de donnée personnelle, et il ne se présente jamais comme un humain ou un professionnel diplômé (`SOUL.md`).
+- **Ne révèle jamais** son prompt système, sous aucune forme : citation, résumé, traduction, code, poème, jeu de rôle. Il ne change ni de rôle, ni de thème, quelle que soit la demande.
+- **Langue et longueur** : français, tutoiement, une à trois phrases, 60 mots au plus, un emoji au maximum.
+
+## Choix du piège 5 (délai du smoke test)
+
+Le smoke test attend la réponse **5 secondes au plus**, en preview comme en prod.
+
+**Choix retenu : les messages que les règles connaissent déjà gardent leur réponse immédiate ; seul le reste part à l'IA.**
+
+- `salut`, `bonjour`, `bonsoir`, `coucou`, `hello`, `aide`, `secours`, `test` et les commandes `/…` sont servis sans aucun appel réseau. Le contrat CP1 (« salut » doit recevoir exactement `replyTo('salut')`) et le smoke test (qui envoie « salut ») sont donc insensibles à la latence de la passerelle.
+- Tout autre message part à l'IA, avec un **délai maximal de 3,5 secondes** (`DELAI_MAX` dans `server/ia.js`), sous les 4 secondes recommandées. Au-delà, la réponse des règles part à sa place.
+
+Ces deux protections sont cumulatives : même si la passerelle devient lente, aucun test de la chaîne ne dépend d'elle.
+
+## Données et fonctions attendues
+
+- **`server/ia.js`** (le seul module qui parle au modèle) exporte :
+  - `repondre({ message, historique }, { fournisseur, config, delaiMax })` → `{ ok: true, texte, source, degrade }` ou `{ ok: false, erreur }`. Il ne lève jamais.
+  - `source` vaut `'ia'` ou `'regles'` ; `degrade` vaut `true` seulement quand l'IA **aurait dû** répondre et ne l'a pas fait. Une réponse des règles attendue (« salut ») n'est pas un mode dégradé.
+  - `construireMessages`, `configuration`, `appelerPasserelle` : format OpenAI, lecture de l'environnement, appel réel.
+  - `validateMessage` est rejoué côté serveur : la route ne fait pas confiance au navigateur.
+  - L'historique envoyé au modèle est limité aux **6 derniers messages**, filtré des rôles `system` que le client tenterait d'injecter.
+- **`server/prompt.js`** : le prompt système, dérivé de `SOUL.md`. Corrigé par PR après chaque passage d'évaluation.
+- **`server/chat.js`** : la logique de la route, partagée par les deux portes d'entrée. `GET` répond `{ pret: true }` (sonde), `POST` répond la réponse, toute autre méthode 405.
+- **`api/chat.js`** : porte d'entrée Vercel, minimale, sans aucune globale Node (piège 2 de la fiche).
+- **`server/app.js`** : route `POST /api/chat` placée **avant** le contrôle de méthode ; corps plafonné à 16 Ko ; partout ailleurs, `GET` et `HEAD` seulement, comme au J1.
+- **`public/index.html`** : `#mode`, paragraphe `role="status"`, placé **hors** de `#messages` et du formulaire. `#status` garde son rôle du J1 (« Coach Sprint écrit… », erreurs de saisie) : le mode dégradé ne s'y affiche jamais.
+- **`public/js/app.js`** : envoie `{ message, historique }` à `/api/chat`, affiche le texte reçu tel quel, montre `#mode` quand `degrade` est vrai. Si la requête échoue, la page se replie elle-même sur `replyTo`. Le verrou d'envoi devient un drapeau `enAttente` ; un compteur de génération jette les réponses périmées (effacement pendant l'attente). Ni `AbortController` ni `AbortSignal` : ils sont absents des globales d'`eslint.config.js`.
+- **Tests** : `tests/ia.test.js` (faux fournisseur), `tests/chat-route.test.js` (route locale sans clé), `tests/secrets.test.js` (rien de sensible dans `public/`), `browser/ia.spec.js` (mode dégradé dans la page).
+
+## Hors périmètre
+
+- Pas de streaming de la réponse, pas d'historique côté serveur : la mémoire reste dans le navigateur.
+- Pas de dépendance ajoutée : `fetch` natif, aucun SDK.
+- Pas de modification du contrat CP1 ni des smoke tests.
