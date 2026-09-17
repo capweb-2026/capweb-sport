@@ -223,6 +223,30 @@ boutonExporter?.addEventListener('click', () => {
   setTimeout(() => URL.revokeObjectURL(url), 0);
 });
 
+// État de l'IA, lu sur /api/health : adresse de la passerelle et modèle, jamais la clé.
+// Sert à diagnostiquer un mode dégradé sans ouvrir les journaux du serveur.
+const iaElt = document.querySelector('#ia');
+
+function afficherEtatIa(etat) {
+  if (!iaElt) return;
+  if (!etat || typeof etat.modele !== 'string') {
+    iaElt.textContent = 'IA : état indisponible.';
+    return;
+  }
+  if (etat.configure) {
+    iaElt.textContent = `IA : ${etat.modele} via ${etat.adresse}`;
+    return;
+  }
+  // Dire laquelle des deux variables manque évite de chercher à l'aveugle.
+  const manque = etat.cleFournie ? 'adresse absente' : etat.adresse ? 'clé absente' : 'adresse et clé absentes';
+  iaElt.textContent = `IA non configurée (${manque}) — modèle prévu : ${etat.modele}`;
+}
+
+fetch('/api/health', { headers: { accept: 'application/json' } })
+  .then((reponse) => (reponse.ok ? reponse.json() : null))
+  .then(afficherEtatIa)
+  .catch(() => afficherEtatIa(null));
+
 // Version du serveur local, échec discret si indisponible.
 fetch('/version.json', { headers: { accept: 'application/json' } })
   .then((reponse) => (reponse.ok ? reponse.json() : null))
