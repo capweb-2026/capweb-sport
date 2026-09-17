@@ -1,6 +1,10 @@
-// Sonde du tuyau (CP3-1, étape 1) : avant toute IA, vérifier que Vercel sert bien ce fichier
-// comme une fonction. Ouvrir https://<adresse de la preview>/api/chat doit afficher {"pret":true}.
-// Aucune globale Node ici : ce fichier n'est couvert par aucun bloc de globales d'eslint.config.js.
-export default function handler(req, res) {
-  res.status(200).json({ pret: true });
+// Porte d'entrée Vercel de la route /api/chat.
+// Volontairement minimale : ce fichier n'est couvert par aucun bloc de globales d'eslint.config.js,
+// donc ni process, ni console, ni Buffer ici. Toute la logique, et la lecture de la clé,
+// vivent dans server/ (piège 2 de la fiche CP3).
+import { traiterChat } from '../server/chat.js';
+
+export default async function handler(req, res) {
+  const { statut, donnees } = await traiterChat({ methode: req.method, corps: req.body });
+  res.status(statut).json(donnees);
 }
