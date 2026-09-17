@@ -1,5 +1,6 @@
 import { validateMessage, replyTo } from './brain.js'
 import { renderMessages } from './view.js'
+import { persona } from './persona.js'
 
 const formulaire = document.querySelector('#chat-form');
 const statut = document.querySelector('#status');
@@ -7,8 +8,39 @@ const versionElt = document.querySelector('#version');
 const history = document.querySelector('#messages');
 const chatbar = document.querySelector('#message');
 const deleteButton = document.querySelector('#effacer');
+const accueil = document.querySelector('#accueil');
+const suggestions = document.querySelector('#suggestions');
 
 const historique = []; // { role: string, text: string };
+
+// Identité depuis persona.js : nom, emoji, accueil et suggestions.
+function afficherIdentite() {
+  const nomElt = document.querySelector('#persona-nom');
+  const emojiElt = document.querySelector('#persona-emoji');
+  if (nomElt) nomElt.textContent = persona.nom;
+  if (emojiElt) emojiElt.textContent = persona.emoji;
+  document.title = `${persona.nom} — assistant sport`;
+  if (accueil) accueil.textContent = persona.accueil;
+
+  const boutons = persona.suggestions.map((texte) => {
+    const bouton = document.createElement('button');
+    bouton.type = 'button';
+    bouton.textContent = texte;
+    // Place la question dans le champ sans l'envoyer.
+    bouton.addEventListener('click', () => {
+      chatbar.value = texte;
+      chatbar.focus();
+    });
+    return bouton;
+  });
+  suggestions?.replaceChildren(...boutons);
+}
+
+// L'accueil n'est visible que sur une conversation vide.
+function afficherConversation() {
+  renderMessages(historique, history);
+  if (accueil) accueil.hidden = historique.length > 0;
+}
 
 // J1 : interface seule, on bloque l’envoi et on l’explique.
 formulaire?.addEventListener('submit', (event) => {
@@ -29,7 +61,7 @@ formulaire?.addEventListener('submit', (event) => {
 
   historique.push({ role: 'user', text: resp.value }, { role: 'assistant', text: replyTo(resp.value) });
   localStorage.setItem('capweb.historique', JSON.stringify(historique));
-  renderMessages(historique, history);
+  afficherConversation();
 
   // const newMessage = document.createElement("li");
   // newMessage.textContent = "Vous: " + prompt;
@@ -48,7 +80,7 @@ deleteButton?.addEventListener('click', () => {
   if (!confirm('Effacer toute la conversation ?')) return;
   localStorage.removeItem('capweb.historique');
   historique.length = 0;
-  renderMessages(historique, history);
+  afficherConversation();
 });
 
 // Version du serveur local, échec discret si indisponible.
@@ -78,4 +110,5 @@ function retrieveHistory() {
   }
 }
 retrieveHistory();
-renderMessages(historique, history);
+afficherIdentite();
+afficherConversation();

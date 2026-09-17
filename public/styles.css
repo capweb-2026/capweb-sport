@@ -90,6 +90,13 @@ button:hover {
   outline-offset: 2px;
 }
 
+#suggestions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+}
+
 #status {
   min-height: 1.5em;
   font-weight: 700;

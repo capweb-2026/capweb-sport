@@ -1,3 +1,5 @@
+import { persona } from './persona.js'
+
 export function renderMessages(messages, container) {
   const render = [];
   for (const mess of messages) {
@@ -5,7 +7,7 @@ export function renderMessages(messages, container) {
     if (mess.role === "user") {
       newMessage.textContent = "Vous: " + mess.text;
     } else {
-      newMessage.textContent = "Cap Web: " + mess.text;
+      newMessage.textContent = persona.nom + ": " + mess.text;
     }
     render.push(newMessage);
   }

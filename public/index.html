@@ -3,17 +3,19 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Cap Web — assistant apprentissage web</title>
+  <title>Coach Sprint — assistant sport</title>
   <link rel="stylesheet" href="./styles.css">
 </head>
 <body>
   <header>
-    <h1>Cap Web</h1>
-    <p>Assistant fictif pour apprendre le web. Réponse à règles, pas une IA réelle.</p>
+    <h1><span id="persona-emoji" aria-hidden="true">🏃</span> <span id="persona-nom">Coach Sprint</span></h1>
+    <p>Assistant fictif pour tes séances de sport de loisir. Réponses à règles.</p>
   </header>
   <main>
     <section aria-labelledby="titre-chat">
       <h2 id="titre-chat">Discussion</h2>
+      <p id="accueil"></p>
+      <div id="suggestions" role="group" aria-label="Questions suggérées"></div>
       <ul id="messages" aria-live="polite" aria-label="Messages"></ul>
       <form id="chat-form">
         <label for="message">Votre message (280 caractères maximum)</label>
