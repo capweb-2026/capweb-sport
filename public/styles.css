@@ -7,6 +7,28 @@
   --bord: #333333;
 }
 
+/* Thème sombre : celui du système, sauf choix « clair » mémorisé. */
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --fond: #121417;
+    --texte: #f2f2f2;
+    --accent: #0b5fff;
+    --accent-fonce: #6d9bff;
+    --bord: #9aa0a6;
+  }
+}
+
+/* Thème sombre choisi avec le bouton, quel que soit le système. */
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --fond: #121417;
+  --texte: #f2f2f2;
+  --accent: #0b5fff;
+  --accent-fonce: #6d9bff;
+  --bord: #9aa0a6;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -81,8 +103,19 @@ button {
   cursor: pointer;
 }
 
-button:hover {
-  background: var(--accent-fonce);
+button:hover:not(:disabled) {
+  background: #003ecb;
+}
+
+button:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
 }
 
 :focus-visible {

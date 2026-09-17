@@ -10,6 +10,7 @@
   <header>
     <h1><span id="persona-emoji" aria-hidden="true">🏃</span> <span id="persona-nom">Coach Sprint</span></h1>
     <p>Assistant fictif pour tes séances de sport de loisir. Réponses à règles.</p>
+    <button type="button" id="theme" aria-pressed="false">Thème sombre</button>
   </header>
   <main>
     <section aria-labelledby="titre-chat">
@@ -23,7 +24,10 @@
         <button type="submit">Envoyer</button>
       </form>
       <p id="status" role="status"></p>
-      <button type="button" id="effacer">Effacer la conversation</button>
+      <div class="actions">
+        <button type="button" id="effacer">Effacer la conversation</button>
+        <button type="button" id="exporter">Exporter en .txt</button>
+      </div>
     </section>
   </main>
   <footer>
