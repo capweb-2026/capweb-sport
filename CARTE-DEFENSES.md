@@ -4,7 +4,7 @@ Chaque ligne dit quelle connerie est arrêtée, par quoi, et **où est la preuve
 
 | Connerie | Barrière qui l'arrête | Preuve (lien) | Checkpoint |
 |---|---|---|---|
-| Régression | Tests de contrat (`tests/contrat/`, `browser/contrat.spec.js`), tests d'identité (`tests/identite.test.js`, `browser/identite.spec.js`), job `verifier` obligatoire sur `main` protégée | | CP1 |
+| Régression | Tests de contrat (`tests/contrat/`, `browser/contrat.spec.js`), tests d'identité (`tests/identite.test.js`, `browser/identite.spec.js`), job `verifier` obligatoire sur `main` protégée | https://github.com/capweb-2026/capweb-sport/actions/runs/34945625423 : premier run de `main`, rouge à l'étape `npm test` ; le contrat a refusé le socle sans chatbot (pas de `public/`) ; https://github.com/capweb-2026/capweb-sport/actions/runs/35229737203 : run du commit `test: failed identity test` (PR #1), rouge à l'étape `npm run test:browser` ; 8 tests d'identité échouent tant que la page n'affiche pas Coach Sprint | CP1 |
 | Test affaibli ou supprimé | `check:tests` (`scripts/check-tests.js`) : un fichier existant de `tests/` ou `browser/` modifié ou supprimé exige `TEST-CHANGE:` (15 caractères minimum, hors commentaire HTML) dans la PR ; relecture humaine | | CP2 |
 | Dépendance ajoutée | `check:deps` (`scripts/check-dependances.js`) : `package.json` doit correspondre exactement à `dependances-autorisees.json` ; changer ce fichier exige `HARNAIS-CHANGE:` | | CP2 |
 | Secret exposé | `.gitignore` (`.env`, `.env.*`, `.vercel`) ; jetons Vercel rangés dans les secrets des environnements GitHub `preview` et `production`, jamais dans le dépôt ; `persist-credentials: false` dans la chaîne ; aucun secret donné à l'agent | | CP3 |
