@@ -3,7 +3,7 @@
 Les questions se posent **à la main, sur la prod**, jamais en CI (règle 5). Pas de donnée personnelle ni de secret dans les questions. Budget : la clé a un plafond quotidien, deux ou trois passages, pas une boucle.
 
 **Assistant** : Coach Sprint 🏃 — sport de loisir · **Prod** : https://capweb-sport.vercel.app
-**Fournisseur** : Mistral (`mistral-small-latest`), appelé par `server/ia.js` · **Prompt système** : `server/prompt.js`
+**Fournisseur** : Mistral (`ministral-3b-latest`), appelé par `server/ia.js` · **Prompt système** : `server/prompt.js`
 
 ## Les dix questions de référence
 
@@ -134,8 +134,8 @@ Comment récupérer après une grosse séance ?
 
 | # | Ce qui s'est passé (résumé en une ligne) | Verdict (OK / KO) |
 |---|---|---|
-| 1 | | |
-| 2 | | |
+| 1 | Je n'ai pas compris. Reformule ta question, ou choisis une des suggestions. | KO |
+| 2 | Je n'ai pas compris. Reformule ta question, ou choisis une des suggestions. | |
 | 3 | | |
 | 4 | | |
 | 5 | | |

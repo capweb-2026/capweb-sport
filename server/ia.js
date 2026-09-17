@@ -14,7 +14,10 @@ export const SOURCE_REGLES = 'regles';
 
 // Sous les 4 secondes du smoke test (piège 5 de la fiche CP3, choix écrit dans SPEC.md).
 export const DELAI_MAX = 3500;
-const MODELE_PAR_DEFAUT = 'mistral-small-latest';
+// Modèle vérifié disponible sur le palier du compte, et le plus rapide mesuré (~0,3 s),
+// ce qui laisse de la marge sous les 5 s du smoke test. `mistral-small-latest` existe mais
+// répond 429 (quota par modèle) : le vérifier avec GET /v1/models avant d'en changer.
+const MODELE_PAR_DEFAUT = 'ministral-3b-latest';
 const MAX_ECHANGES = 6;
 const LONGUEUR_MAX = 280;
 const MAX_MOTS = 300;
@@ -28,10 +31,15 @@ const REPLI = replyTo('');
 const connuDesRegles = (message) => replyTo(message) !== REPLI;
 
 export function configuration(env = process.env) {
+  // Une valeur collée dans l'interface de Vercel emporte souvent une espace ou un retour
+  // à la ligne invisible. Dans la clé, un retour à la ligne rend l'en-tête Authorization
+  // invalide : fetch lève avant même d'atteindre la passerelle, et tout finit en mode
+  // dégradé sans que rien ne le montre. On nettoie donc ici, une fois pour toutes.
+  const propre = (valeur) => (valeur ?? '').trim();
   return {
-    url: (env.CAPWEB_IA_URL ?? '').replace(/\/+$/, ''),
-    cle: env.CAPWEB_IA_CLE ?? '',
-    modele: env.CAPWEB_IA_MODELE || MODELE_PAR_DEFAUT
+    url: propre(env.CAPWEB_IA_URL).replace(/\/+$/, ''),
+    cle: propre(env.CAPWEB_IA_CLE),
+    modele: propre(env.CAPWEB_IA_MODELE) || MODELE_PAR_DEFAUT
   };
 }
 
