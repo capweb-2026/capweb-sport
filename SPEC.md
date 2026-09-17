@@ -69,7 +69,9 @@ Fournisseur retenu : **Mistral**, via son API compatible OpenAI (`POST <adresse>
 |---|---|---|
 | `CAPWEB_IA_URL` | `https://api.mistral.ai/v1` | Vercel, *Preview* et *Production* |
 | `CAPWEB_IA_CLE` | la clé « app » | Vercel, *Preview* et *Production* |
-| `CAPWEB_IA_MODELE` | `mistral-small-latest` (défaut du code si absente) | Vercel, *Preview* et *Production* |
+| `CAPWEB_IA_MODELE` | `ministral-3b-latest` (défaut du code si absente) | Vercel, *Preview* et *Production* |
+
+Le modèle est une variable, et pas une valeur en dur, parce que **tous les modèles ne sont pas accessibles à tous les paliers de compte** : `mistral-small-latest` figure bien dans `GET /v1/models` mais répond `429 Rate limit exceeded` sur ce compte, alors que `ministral-3b-latest` répond en ~0,3 s. En changer ne demande donc aucune modification de code, seulement une variable et un redéploiement. Avant d'adopter un modèle, vérifier qu'il répond vraiment `200` sur `POST /v1/chat/completions` : figurer dans la liste ne suffit pas.
 
 Aucune de ces variables n'existe en local ni en CI : les tests y sont donc toujours en mode dégradé, ce qui est précisément le comportement à garantir.
 
