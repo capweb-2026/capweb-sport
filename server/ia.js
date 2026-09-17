@@ -35,6 +35,19 @@ export function configuration(env = process.env) {
   };
 }
 
+// État de la configuration, pour la route de santé. Ne renvoie JAMAIS la clé,
+// seulement un booléen qui dit si elle est présente : c'est ce qui permet de distinguer
+// « variable absente » de « clé refusée » sans jamais exposer de secret.
+export function diagnostic(config = configuration()) {
+  return {
+    configure: Boolean(config.url && config.cle),
+    adresse: config.url || null,
+    modele: config.modele,
+    cleFournie: Boolean(config.cle),
+    delaiMaxMs: DELAI_MAX
+  };
+}
+
 // Messages au format OpenAI, que Mistral partage : prompt système, derniers échanges, message.
 export function construireMessages({ message, historique = [], prompt = PROMPT_SYSTEME, maxEchanges = MAX_ECHANGES }) {
   const recents = (Array.isArray(historique) ? historique : [])
@@ -106,8 +119,11 @@ export async function repondre(
       return repli;
     }
     return { ok: true, texte: resultat.trim(), source: SOURCE_IA, degrade: false };
-  } catch {
+  } catch (erreur) {
     // Panne, clé coupée, budget épuisé : l'assistant répond quand même, avec ses règles.
+    // La raison part dans les journaux du serveur (Vercel → Runtime Logs) pour être
+    // diagnosticable ; jamais la clé, jamais le message de l'utilisateur.
+    console.error(`[ia] repli sur les règles : ${erreur?.message ?? 'raison inconnue'}`);
     return repli;
   } finally {
     clearTimeout(minuteur);

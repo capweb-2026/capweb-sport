@@ -36,6 +36,8 @@ npx playwright test browser/contrat.spec.js -g "Effacer"
 
 **IA (CP3)** : `server/ia.js` est le seul module qui parle au modèle. Il reçoit son fournisseur en paramètre (la passerelle en prod, un faux dans les tests), ne lève jamais, et renvoie `{ ok, texte, source, degrade }`. `source` vaut `ia` ou `regles` ; `degrade` n'est vrai que si l'IA aurait dû répondre et ne l'a pas fait — une réponse des règles attendue (« salut ») n'est pas un mode dégradé. `server/prompt.js` porte le prompt système, qui ne descend jamais dans `public/` (`tests/secrets.test.js` le vérifie). `server/chat.js` porte la logique de la route, appelée par `api/chat.js` (Vercel) et par `server/app.js` (local).
 
+**Diagnostic** : `GET /api/health` dit si la fonction déployée voit sa configuration (`configure`, `adresse`, `modele`, `cleFournie`, `delaiMaxMs`). `cleFournie` est un booléen, jamais la valeur. C'est ce qui distingue « variables absentes » (repli immédiat, moins d'une seconde) de « clé refusée » (repli après l'aller-retour vers la passerelle). Le repli journalise sa raison avec `console.error`, lisible dans les *Runtime Logs* de Vercel. Rappel : une variable d'environnement ajoutée après un déploiement n'est visible que des déploiements suivants — il faut redéployer.
+
 Contraintes d'écriture, toutes vérifiées par la chaîne :
 - `api/chat.js` n'est couvert par aucun bloc de globales d'`eslint.config.js` : ni `process`, ni `console`, ni `Buffer`. Tout passe par `server/`.
 - Ni `AbortController` ni `AbortSignal` (absents des deux listes de globales) : le délai maximal s'écrit avec `setTimeout` + `Promise.race`, et l'annulation côté page avec un compteur de génération.

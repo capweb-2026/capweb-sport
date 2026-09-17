@@ -1,7 +1,7 @@
 // CP3 — la logique de la route /api/chat, partagée par les deux portes d'entrée :
 // api/chat.js (Vercel, en prod) et server/app.js (local, tests navigateur).
 // Elle ne connaît ni http, ni Vercel : elle reçoit une méthode et un corps, elle rend un statut.
-import { repondre } from './ia.js';
+import { repondre, diagnostic } from './ia.js';
 
 // Le message fait 280 caractères au plus, l'historique une poignée de lignes : 16 Ko suffisent.
 export const TAILLE_MAX = 16 * 1024;
@@ -17,6 +17,16 @@ function lireCorps(corps) {
   } catch {
     return null;
   }
+}
+
+// Route de santé : l'état de la configuration vue par la fonction déployée.
+// Lecture seule, jamais mise en cache, et aucun secret (voir diagnostic()).
+export function traiterSante({ methode = 'GET' } = {}, { config } = {}) {
+  const verbe = String(methode).toUpperCase();
+  if (verbe !== 'GET' && verbe !== 'HEAD') {
+    return { statut: 405, donnees: { ok: false, erreur: 'Méthode non autorisée' } };
+  }
+  return { statut: 200, donnees: config ? diagnostic(config) : diagnostic() };
 }
 
 export async function traiterChat({ methode = 'GET', corps } = {}, options = {}) {

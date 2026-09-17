@@ -1,11 +1,12 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
-import { traiterChat, TAILLE_MAX } from './chat.js';
+import { traiterChat, traiterSante, TAILLE_MAX } from './chat.js';
 
-// Route dynamique du CP3, seule exception au « GET et HEAD seulement ».
-// En prod, c'est api/chat.js qui la sert ; ici, ce sont les tests navigateur.
+// Routes dynamiques du CP3, seules exceptions au « GET et HEAD seulement ».
+// En prod, ce sont api/chat.js et api/health.js qui les servent ; ici, les tests navigateur.
 const ROUTE_CHAT = '/api/chat';
+const ROUTE_SANTE = '/api/health';
 const TROP_GROS = Symbol('trop gros');
 
 // Corps de requête lu avec un plafond : on draine toujours, on ne garde rien au-delà.
@@ -90,6 +91,18 @@ export function createApp({ publicDir, version = 'dev' } = {}) {
     }
     if (chemin === ROUTE_CHAT) {
       await repondreChat(req, res, methode);
+      return;
+    }
+    if (chemin === ROUTE_SANTE) {
+      const { statut, donnees } = traiterSante({ methode });
+      const corps = JSON.stringify(donnees);
+      res.writeHead(statut, {
+        'content-type': 'application/json; charset=utf-8',
+        'content-length': Buffer.byteLength(corps),
+        // L'état de la configuration change sans changer de commit : jamais de cache.
+        'cache-control': 'no-store'
+      });
+      res.end(methode === 'HEAD' ? '' : corps);
       return;
     }
     // Partout ailleurs : seules GET et HEAD sont autorisées (outillage statique J1).
