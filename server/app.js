@@ -1,6 +1,31 @@
 import http from 'node:http';
 import { readFile } from 'node:fs/promises';
 import path from 'node:path';
+import { traiterChat, TAILLE_MAX } from './chat.js';
+
+// Route dynamique du CP3, seule exception au « GET et HEAD seulement ».
+// En prod, c'est api/chat.js qui la sert ; ici, ce sont les tests navigateur.
+const ROUTE_CHAT = '/api/chat';
+const TROP_GROS = Symbol('trop gros');
+
+// Corps de requête lu avec un plafond : on draine toujours, on ne garde rien au-delà.
+function lireCorpsBrut(req) {
+  return new Promise((resoudre, rejeter) => {
+    let corps = '';
+    let depasse = false;
+    req.setEncoding('utf8');
+    req.on('data', (morceau) => {
+      if (depasse) return;
+      corps += morceau;
+      if (corps.length > TAILLE_MAX) {
+        depasse = true;
+        corps = '';
+      }
+    });
+    req.on('end', () => resoudre(depasse ? TROP_GROS : corps));
+    req.on('error', rejeter);
+  });
+}
 
 // Liste explicite : seuls ces chemins publics sont servis.
 const FICHIERS = {
@@ -36,14 +61,23 @@ export function createApp({ publicDir, version = 'dev' } = {}) {
     });
   });
 
+  // Route du chat : le corps est lu ici, la décision est prise par server/chat.js.
+  async function repondreChat(req, res, methode) {
+    const brut = methode === 'POST' ? await lireCorpsBrut(req) : undefined;
+    const { statut, donnees } =
+      brut === TROP_GROS
+        ? { statut: 413, donnees: { ok: false, erreur: 'Requête trop volumineuse.' } }
+        : await traiterChat({ methode, corps: brut });
+    const corps = JSON.stringify(donnees);
+    res.writeHead(statut, {
+      'content-type': 'application/json; charset=utf-8',
+      'content-length': Buffer.byteLength(corps)
+    });
+    res.end(methode === 'HEAD' ? '' : corps);
+  }
+
   async function traiter(req, res) {
     const methode = (req.method ?? 'GET').toUpperCase();
-    // Seules GET et HEAD sont autorisées (outillage statique J1).
-    if (methode !== 'GET' && methode !== 'HEAD') {
-      res.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' });
-      res.end('Méthode non autorisée');
-      return;
-    }
     let chemin = '/';
     try {
       // URL puis décodage : tout encodage suspect hors liste donne 404.
@@ -52,6 +86,16 @@ export function createApp({ publicDir, version = 'dev' } = {}) {
     } catch {
       res.writeHead(404, { 'content-type': 'text/plain; charset=utf-8' });
       res.end('Non trouvé');
+      return;
+    }
+    if (chemin === ROUTE_CHAT) {
+      await repondreChat(req, res, methode);
+      return;
+    }
+    // Partout ailleurs : seules GET et HEAD sont autorisées (outillage statique J1).
+    if (methode !== 'GET' && methode !== 'HEAD') {
+      res.writeHead(405, { 'content-type': 'text/plain; charset=utf-8' });
+      res.end('Méthode non autorisée');
       return;
     }
     // Métadonnée de version fournie au démarrage.

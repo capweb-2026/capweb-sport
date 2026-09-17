@@ -32,7 +32,17 @@ npx playwright test browser/contrat.spec.js -g "Effacer"
 
 **Contrat navigateur** (`browser/contrat.spec.js`) : sélecteurs `#chat-form`, `#message`, `#messages`, `#status`, `#effacer`, bouton « Envoyer ». Effacer passe par `confirm()` : accepter vide l'écran et la mémoire, refuser ne change rien.
 
-**Serveur local (`server/app.js`)** : liste blanche `FICHIERS` + `TYPES`. Un fichier de `public/` absent de ces deux objets répond 404, et la page casse si un module l'importe. GET et HEAD seulement.
+**Serveur local (`server/app.js`)** : liste blanche `FICHIERS` + `TYPES`. Un fichier de `public/` absent de ces deux objets répond 404, et la page casse si un module l'importe. GET et HEAD seulement, **sauf `/api/chat`**, seule route dynamique, traitée avant le contrôle de méthode.
+
+**IA (CP3)** : `server/ia.js` est le seul module qui parle au modèle. Il reçoit son fournisseur en paramètre (la passerelle en prod, un faux dans les tests), ne lève jamais, et renvoie `{ ok, texte, source, degrade }`. `source` vaut `ia` ou `regles` ; `degrade` n'est vrai que si l'IA aurait dû répondre et ne l'a pas fait — une réponse des règles attendue (« salut ») n'est pas un mode dégradé. `server/prompt.js` porte le prompt système, qui ne descend jamais dans `public/` (`tests/secrets.test.js` le vérifie). `server/chat.js` porte la logique de la route, appelée par `api/chat.js` (Vercel) et par `server/app.js` (local).
+
+Contraintes d'écriture, toutes vérifiées par la chaîne :
+- `api/chat.js` n'est couvert par aucun bloc de globales d'`eslint.config.js` : ni `process`, ni `console`, ni `Buffer`. Tout passe par `server/`.
+- Ni `AbortController` ni `AbortSignal` (absents des deux listes de globales) : le délai maximal s'écrit avec `setTimeout` + `Promise.race`, et l'annulation côté page avec un compteur de génération.
+- Le mode dégradé s'affiche dans `#mode`, jamais dans `#status` : `browser/defis.spec.js` exige `#status` vide après la réponse.
+- Les messages connus des règles (`salut`, `aide`, `test`, commandes `/…`) ne partent pas à l'IA : c'est ce qui garde le contrat CP1 et le smoke test sous les 5 secondes (choix écrit dans `SPEC.md`).
+
+**Clés** : uniquement dans les variables d'environnement Vercel (`CAPWEB_IA_URL`, `CAPWEB_IA_CLE`, `CAPWEB_IA_MODELE`), cochées *Preview* et *Production*. Jamais en local, jamais en CI, jamais dans un chat : sans elles, tout répond en mode dégradé, ce qui est le comportement testé.
 
 **Production** : Vercel sert le statique de `dist/`, pas le serveur Node. Le commit déployé se lit dans `/version.json`.
 

@@ -10,6 +10,7 @@ const history = document.querySelector('#messages');
 const chatbar = document.querySelector('#message');
 const deleteButton = document.querySelector('#effacer');
 const accueil = document.querySelector('#accueil');
+const modeElt = document.querySelector('#mode');
 const suggestions = document.querySelector('#suggestions');
 const boutonEnvoyer = formulaire?.querySelector('button[type="submit"]');
 const boutonTheme = document.querySelector('#theme');
@@ -18,11 +19,17 @@ const boutonExporter = document.querySelector('#exporter');
 const CLE_HISTORIQUE = 'capweb.historique';
 const CLE_THEME = 'capweb.theme';
 const DELAI_REPONSE = 1000;
+// Derniers échanges envoyés au serveur : le reste de la mémoire ne quitte pas le navigateur.
+const ECHANGES_ENVOYES = 6;
+const TEXTE_MODE_DEGRADE = 'Mode dégradé : Coach Sprint répond avec ses règles, l’IA n’a pas répondu.';
 
 const historique = []; // { role: string, text: string };
 
 // Réponse en attente : tant qu'il y en a une, un nouvel envoi est ignoré.
-let minuteur = null;
+let enAttente = false;
+// Compteur d'envoi : une réponse dont la marque a changé (effacement, nouvel envoi) est jetée.
+// Sert de remplaçant à AbortController, absent des globales d'eslint.config.js.
+let generation = 0;
 
 // Identité depuis persona.js : nom, emoji, accueil et suggestions.
 function afficherIdentite() {
@@ -57,30 +64,76 @@ function sauvegarder() {
   localStorage.setItem(CLE_HISTORIQUE, JSON.stringify(historique));
 }
 
-function attendreReponse(enAttente) {
-  if (boutonEnvoyer) boutonEnvoyer.disabled = enAttente;
-  statut.textContent = enAttente ? `${persona.nom} écrit…` : '';
+function attendreReponse(occupe) {
+  if (boutonEnvoyer) boutonEnvoyer.disabled = occupe;
+  statut.textContent = occupe ? `${persona.nom} écrit…` : '';
 }
 
-// La réponse arrive après un délai ; le minuteur sert aussi de verrou.
-function repondreApresDelai(texte) {
+// Le mode dégradé a sa propre zone : jamais une ligne de la conversation.
+function afficherMode(degrade) {
+  if (!modeElt) return;
+  modeElt.textContent = degrade ? TEXTE_MODE_DEGRADE : '';
+  modeElt.hidden = !degrade;
+}
+
+const attendre = (ms) => new Promise((resoudre) => setTimeout(resoudre, ms));
+
+// Demande une réponse au serveur. Ne lève jamais : si la route est injoignable,
+// la page se replie elle-même sur les règles de J1, comme le ferait le serveur.
+async function demanderReponse(texte) {
+  try {
+    const reponse = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({
+        message: texte,
+        // L'historique s'arrête avant le message courant, déjà envoyé dans « message ».
+        historique: historique.slice(0, -1).slice(-ECHANGES_ENVOYES)
+      })
+    });
+    if (!reponse.ok) throw new Error(`route /api/chat : ${reponse.status}`);
+    const donnees = await reponse.json();
+    if (!donnees || typeof donnees.texte !== 'string' || donnees.texte.trim() === '') {
+      throw new Error('réponse inexploitable');
+    }
+    return { texte: donnees.texte, degrade: donnees.degrade === true };
+  } catch {
+    return { texte: replyTo(texte), degrade: true };
+  }
+}
+
+// Un seul chemin « envoyer → attendre → répondre », quelle que soit la source de la réponse.
+async function repondre(texte, { local = null } = {}) {
+  const marque = ++generation;
+  enAttente = true;
   attendreReponse(true);
-  minuteur = setTimeout(() => {
-    minuteur = null;
-    historique.push({ role: 'assistant', text: texte });
-    sauvegarder();
-    afficherConversation();
-    attendreReponse(false);
-    chatbar.focus();
-  }, DELAI_REPONSE);
+  afficherMode(false);
+
+  // Le délai minimal garde le statut « écrit… » visible, comme au J1.
+  const [resultat] = await Promise.all([
+    local === null ? demanderReponse(texte) : Promise.resolve({ texte: local, degrade: false }),
+    attendre(DELAI_REPONSE)
+  ]);
+
+  // Effacement ou nouvel envoi pendant l'attente : la réponse est périmée, on la jette.
+  if (marque !== generation) return;
+
+  enAttente = false;
+  historique.push({ role: 'assistant', text: resultat.texte });
+  sauvegarder();
+  afficherConversation();
+  attendreReponse(false);
+  afficherMode(resultat.degrade);
+  chatbar.focus();
 }
 
 function effacerConversation() {
   if (!confirm('Effacer toute la conversation ?')) return;
   // Une réponse en attente ne doit pas réapparaître après l'effacement.
-  clearTimeout(minuteur);
-  minuteur = null;
+  generation += 1;
+  enAttente = false;
   attendreReponse(false);
+  afficherMode(false);
   localStorage.removeItem(CLE_HISTORIQUE);
   historique.length = 0;
   afficherConversation();
@@ -89,7 +142,7 @@ function effacerConversation() {
 formulaire?.addEventListener('submit', (event) => {
   event.preventDefault();
   // Deux envois rapides : le second est ignoré et garde son texte dans le champ.
-  if (minuteur !== null) return;
+  if (enAttente) return;
 
   const resp = validateMessage(chatbar.value)
   if (!resp.ok) {
@@ -111,7 +164,8 @@ formulaire?.addEventListener('submit', (event) => {
   sauvegarder();
   afficherConversation();
   chatbar.focus()
-  repondreApresDelai(cmd ? cmd.reponse : replyTo(resp.value));
+  // Une commande se traite dans la page ; tout le reste passe par /api/chat.
+  repondre(resp.value, { local: cmd ? cmd.reponse : null });
 });
 
 deleteButton?.addEventListener('click', effacerConversation);
